@@ -1,6 +1,13 @@
 ﻿using UnityEngine;
 using System.Collections;
 using UnityEngine.EventSystems;
+
+public class AudioPathDefine
+{
+    public const string UIBtn = "UIBtn";
+
+    public const string PopUI = "PopUI";
+}
 public class UguiEventListener : EventTrigger {
 
 
@@ -63,11 +70,16 @@ public class UguiEventListener : EventTrigger {
     public event UIDelegate onCancel;
     #endregion
 
-    private object data;
-    public static UguiEventListener Get(GameObject go)
+    bool _isPlayAudio = false;
+    string _audioPath = string.Empty;
+
+    object data;
+    public static UguiEventListener Get(GameObject go, bool isPlayAudio = true,string audioPath = AudioPathDefine.UIBtn)
     {
         UguiEventListener listener = go.GetComponent<UguiEventListener>();
         if (listener == null) listener = go.AddComponent<UguiEventListener>();
+        listener._isPlayAudio = isPlayAudio;
+        listener._audioPath = audioPath;
         return listener;
     }
 
@@ -115,7 +127,14 @@ public class UguiEventListener : EventTrigger {
     }
     public override void OnPointerClick(PointerEventData eventData)
     {
-        if (onPointerClick != null) onPointerClick(gameObject);
+        if (onPointerClick != null)
+        {
+            onPointerClick(gameObject);
+            if (_isPlayAudio)
+            {
+                Debug.Log("播放按钮声音");
+            }
+        }
 
         if (onPointerClickData != null)      
             onPointerClickData(gameObject, data);
