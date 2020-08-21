@@ -435,7 +435,6 @@
      <Compile Include="Assets\QFramework\Framework\Util\EditorUtil.cs" />
      <Compile Include="Assets\QFramework\Framework\Util\Hide.cs" />
      <Compile Include="Assets\QFramework\Framework\Util\MathUtil.cs" />
-     <Compile Include="Assets\QFramework\Framework\Util\MonoSingleton.cs" />
      <Compile Include="Assets\QFramework\Framework\Util\MsgDispatcher.cs" />
      <Compile Include="Assets\QFramework\Framework\Util\ResolutionCheck.cs" />
      <Compile Include="Assets\QFramework\Framework\Util\SimpleObjectPool.cs" />

@@ -2,32 +2,9 @@
 using System.Collections;
 using System.Collections.Generic;
 public delegate void MusicFinish();
-public class MusicManager : MonoBehaviour
+public class MusicManager : MonoSingleton<MusicManager>
 {
 
-    #region 单例
-    private static MusicManager instance = null;
-    public static MusicManager Instance
-    {
-        get
-        {
-            GameObject musicMgr = GameObject.Find("MusicManager");
-            if (musicMgr == null)
-            {
-                musicMgr = new GameObject(typeof(MusicManager).Name);
-            }
-            if (instance == null)
-            {
-                instance = musicMgr.GetComponent<MusicManager>();
-                if (instance == null)
-                {
-                    instance = musicMgr.AddComponent<MusicManager>();
-                }
-            }
-            return instance;
-        }
-    }
-    #endregion
     private AudioSource musicAudioSource;//背景音乐的AudioSource
 
     private List<AudioSource> unusedSoundAudioSourceList;   // 存放可以使用的音频组件
@@ -45,19 +22,14 @@ public class MusicManager : MonoBehaviour
     public string soundVolumePrefs = "SoundVolume";//本地缓存音效的键
 
     private int poolCount = 5;         // AudioSource对象池数量
-
-    void Awake()
+    public override void Awake()
     {
         //初始化
         musicAudioSource = gameObject.AddComponent<AudioSource>();
         unusedSoundAudioSourceList = new List<AudioSource>();
         usedSoundAudioSourceList = new List<AudioSource>();
         audioClipDict = new Dictionary<string, AudioClip>();
-        DontDestroyOnLoad(this.gameObject);
-    }
-    void Start() { }
-    public void Init()
-    {
+
         // 从本地缓存读取声音音量
         if (PlayerPrefs.HasKey(musicVolumePrefs))
         {
@@ -67,7 +39,56 @@ public class MusicManager : MonoBehaviour
         {
             soundVolume = PlayerPrefs.GetFloat(soundVolumePrefs, 1);
         }
+
     }
+
+    public float PlayMusic(string path, MusicFinish finish = null)
+    {
+        float length = 0f;
+       // StopAllCoroutines();
+
+        //GameObject stream = GameObject.Find("SteamVR");
+        //if (stream != null)
+        //{
+        //    Transform tr = stream.transform.Find("Camera (head)");
+        //    if (tr != null) tr.gameObject.SetActive(true);
+        //}
+        GameObject go = GameObject.FindGameObjectWithTag("MainCamera");
+        if (go == null)
+        {
+            go = GameObject.FindObjectOfType<Camera>().gameObject;
+        }
+        AudioSource source = go.GetComponent<AudioSource>();
+        if (source == null)
+        {
+            source = go.AddComponent<AudioSource>();
+        }
+        source.clip = GetAudioClip(path);
+        source.clip.LoadAudioData();
+        source.volume = musicVolume;
+        source.Play();
+        length = source.clip.length;
+        StartCoroutine(WaitPlayEnd(source, finish));
+
+        return length;
+    }
+
+
+    public void StopAll()
+    {
+        StopAllCoroutines();
+        musicAudioSource.Stop();
+        foreach (var source in unusedSoundAudioSourceList)
+        {
+            source.Stop();
+        }
+
+        foreach (var source in usedSoundAudioSourceList)
+        {
+            source.Stop();
+        }
+    }
+
 
     /// <summary>
     /// 播放背景音乐
@@ -84,12 +105,32 @@ public class MusicManager : MonoBehaviour
         musicAudioSource.Play();
     }
 
+    public void PlaySound(AudioClip clip, MusicFinish func = null)
+    {
+        AudioSource audioSource = null;
+        if (unusedSoundAudioSourceList.Count != 0)
+        {
+            audioSource = UnusedToUsed();
+        }
+        else
+        {
+            AddAudioSource();
+            audioSource = UnusedToUsed();
+        }
+        audioSource.clip = clip;
+        audioSource.clip.LoadAudioData();
+        audioSource.volume = soundVolume;
+        audioSource.loop = false;
+        audioSource.Play();
+        StartCoroutine(WaitPlayEnd(audioSource, func));
+    }
+
     /// <summary>
     /// 播放音效
     /// </summary>
     /// <param name="path">音效路径</param>
     /// <param name="func">回调</param>
-    public void PlaySound(string path, MusicFinish func)
+    public void PlaySound(string path, MusicFinish func = null)
     {
 
         AudioSource audioSource = null;
@@ -190,7 +231,8 @@ public class MusicManager : MonoBehaviour
     /// <returns></returns>
     IEnumerator WaitPlayEnd(AudioSource audioSource, MusicFinish func)
     {
-        yield return new WaitUntil(() => { return !audioSource.isPlaying; });
+        // yield return new WaitUntil(() => { return !audioSource.isPlaying; });
+        yield return new WaitForSeconds(audioSource.clip.length);
         UsedToUnused(audioSource);
         if (func != null)
         {
@@ -248,4 +290,6 @@ public class MusicManager : MonoBehaviour
         }
         PlayerPrefs.SetFloat(soundVolumePrefs, volume);
     }
+
+
 }
