@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
-
+using System;
 
 /// <summary>
 /// 1. "/":斜杠 unity使用"/"来定义路径
@@ -12,37 +12,37 @@ using System.IO;
 public class FileUtil{
 
 
-    /// <summary>
-    /// 创建目录
-    /// </summary>
-    /// <param name="filePath">需要创建的目录路径</param>
-    public static void CreateDirectory(string filePath)
-    {
-        if (!string.IsNullOrEmpty(filePath))
-        {
-            string dirName = Path.GetDirectoryName(filePath);
-            if (!Directory.Exists(dirName))
-            {
-                Directory.CreateDirectory(dirName);
-            }
-        }
-    }
+	/// <summary>
+	/// 创建目录
+	/// </summary>
+	/// <param name="filePath">需要创建的目录路径</param>
+	public static void CreateDirectory(string filePath)
+	{
+		if (!string.IsNullOrEmpty(filePath))
+		{
+			string dirName = Path.GetDirectoryName(filePath);
+			if (!Directory.Exists(dirName))
+			{
+				Directory.CreateDirectory(dirName);
+			}
+		}
+	}
 
-    /// <summary>
-    /// 创建文件
-    /// </summary>
-    /// <param name="filePath">文件路径</param>
-    /// <param name="bytes">文件内容</param>
-    public static void CreatFile(string filePath, byte[] bytes)
-    {
-        FileInfo file = new FileInfo(filePath);
-        Stream stream = file.Create();
+	/// <summary>
+	/// 创建文件
+	/// </summary>
+	/// <param name="filePath">文件路径</param>
+	/// <param name="bytes">文件内容</param>
+	public static void CreatFile(string filePath, byte[] bytes)
+	{
+		FileInfo file = new FileInfo(filePath);
+		Stream stream = file.Create();
 
-        stream.Write(bytes, 0, bytes.Length);
+		stream.Write(bytes, 0, bytes.Length);
 
-        stream.Close();
-        stream.Dispose();
-    }
+		stream.Close();
+		stream.Dispose();
+	}
 
 
 
@@ -168,28 +168,36 @@ public class FileUtil{
 	   
 	}
 
-	/// <summary>
-	/// 文件数据转化成字符串
-	/// </summary>
-	/// <param name="Path"></param>
-	/// <returns></returns>
-	public static string LoadString(string Path)
+	public static string LoadFileStr(string path)
 	{
-		string LoadStr = System.Text.Encoding.UTF8.GetString(Loadbytes(Path));
-		return LoadStr;
+		string str = "";
+		if (!File.Exists(path))
+			return null;
+		StreamReader sr = new StreamReader(path);
+		str = sr.ReadToEnd();
+		if (string.IsNullOrEmpty(str))
+			return null;
+		sr.Close();
+		sr.Dispose();
+		return str;
 	}
-	public static byte[] Loadbytes(string Path)
+	public static byte[] LoadFilebytes(string path)
 	{
-		FileStream fs = File.OpenRead(Path);
-		byte[] bytes = new byte[fs.Length];
-		fs.Read(bytes, 0, bytes.Length);
+		if (!File.Exists(path))
+			return null;
+		return File.ReadAllBytes(path);
+		//FileStream fs = File.OpenRead(path);
+		//byte[] bytes = new byte[fs.Length];
+		//fs.Read(bytes, 0, bytes.Length);
 
-		// 设置当前流的位置为流的开始   
-		fs.Seek(0, SeekOrigin.Begin);
-		fs.Dispose();
-		fs.Close();
-		return bytes;
+		//// 设置当前流的位置为流的开始   
+		//fs.Seek(0, SeekOrigin.Begin);
+		//fs.Dispose();
+		//fs.Close();
+
+		//return bytes;
 	}
+
 
 
 	/// <summary>
@@ -199,38 +207,54 @@ public class FileUtil{
 	/// <param name="offset"></param>
 	/// <param name="url">本地文件绝对路径</param>
 	/// <param name="ReWrite"></param>
-	public static void WriteLocal(string text, int offset, string url, bool ReWrite = true)
+	public static void WriteLocal(string text, int offset, string url, bool ReWrite = true, System.Action<string> callback = null)
 	{
 		byte[] buffer = System.Text.Encoding.UTF8.GetBytes(text);
-		WriteLocal(buffer, offset, url, ReWrite);
+		WriteLocal(buffer, offset, url, ReWrite, callback);
 	}
-	public static void WriteLocal(byte[] buffer, int offset, string url, bool ReWrite = true)
+	public static void WriteLocal(byte[] buffer, int offset, string url, bool ReWrite = true,System.Action<string> callback = null)
 	{
-		//文件流信息
-		FileStream fs;
-		FileInfo t = new FileInfo(url);
-		if (!t.Exists)
+		try
 		{
-			string str = url.Substring(0, url.LastIndexOf("/") + 1);
-			if (!Directory.Exists(str))
-				Directory.CreateDirectory(str);
+			//文件流信息
+			FileStream fs;
+			FileInfo t = new FileInfo(url);
+			if (!t.Exists)
+			{
+				string str = Path.GetDirectoryName(url);
+				if (!Directory.Exists(str))
+					Directory.CreateDirectory(str);
+				fs = new FileStream(url, FileMode.OpenOrCreate);
+			}
+			else
+			{
+				if (!ReWrite)
+				{
+					fs = new FileStream(url, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+					fs.Seek(0, SeekOrigin.End);
+				}
+				else
+				{
+					t.Delete();
+					fs = new FileStream(url, FileMode.OpenOrCreate);
+				}
+			}
 
+			// fs = new FileStream(url, FileMode.Append,FileAccess.Write);
+			// fs.Position = fs.Length;
+			//以行的形式写入信息
+			fs.Write(buffer, offset, buffer.Length);
+			//关闭流
+			fs.Close();
+			//销毁流
+			fs.Dispose();
+			if (callback != null)
+				callback(null);
 		}
-
-		fs = new FileStream(url, FileMode.Create);
-
-		if (!ReWrite)
+		catch (Exception e)
 		{
-			fs.Seek(0, SeekOrigin.End);
+			if (callback != null)
+				callback(e.Message + ":" + e.StackTrace);
 		}
-
-		// fs = new FileStream(url, FileMode.Append,FileAccess.Write);
-		// fs.Position = fs.Length;
-		//以行的形式写入信息
-		fs.Write(buffer, offset, buffer.Length);
-		//关闭流
-		fs.Close();
-		//销毁流
-		fs.Dispose();
 	}
 }
